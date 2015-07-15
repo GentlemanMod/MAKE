@@ -1,0 +1,47 @@
+
+if [ ! -f work/boot.img ]
+then
+	echo
+	echo boot.img not found
+	exit 1
+fi
+
+if [ -d BOOT-EXTRACTED ]
+then
+	extracted=true
+else
+	extracted=false
+fi
+
+if [ "$extracted" == "true" ]
+then
+	echo
+	echo BOOT-EXTRACTED found, Whether to use the it.
+	echo
+	echo -n "Used BOOT-EXTRACTED (y/n)? (default: y): "
+	read do_use_dic
+	if [ "$do_use_dic" == "n" ]
+	then
+		rm -rf BOOT-EXTRACTED
+		scripts/ensure_boot_extracted
+	fi
+else
+	scripts/ensure_boot_extracted
+fi
+
+if [ -f BOOT-EXTRACTED/boot.img-ramdisk/file_contexts ]
+then
+	echo ramdisk/file_contexts found.
+	cp BOOT-EXTRACTED/boot.img-ramdisk/file_contexts work/file_contexts
+	rm -rf BOOT-EXTRACTED
+	echo
+	echo Copy Done!
+else
+	echo ramdisk/file_contexts not found.
+	rm -rf BOOT-EXTRACTED
+	echo
+	echo Copy Failed!
+	exit 1
+fi
+
+exit 0

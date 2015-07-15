@@ -1,0 +1,104 @@
+
+
+clear
+echo
+
+if [ -d work ]
+then
+	echo Found working folder
+else
+	echo No working folder found!
+	exit 0
+fi
+
+mountpoint work/system > /dev/null 2>&1
+if [ "$?" == "1" ]
+then
+	echo
+	echo "work/system mount failed."
+	exit 1
+fi
+
+
+version_release=`grep ro.build.version.release= tools/devices.prop|cut -d "=" -f 2|cut -d "." -f 1`
+df_block=`df --block-size=1K|grep $make_path/work/system|tr -s ' '|cut -d ' ' -f 2`K
+
+if [ "$version_release" -ge "5" ]
+then
+	if [ ! -f work/file_contexts ]
+	then
+		echo
+		echo "file_contexts not found!"
+		scripts/extract_file_contexts
+		if [ "$?" == "1" ];then exit 0;fi
+	fi
+	make_cmd="tools/ext4_utils/make_ext4fs -T 0 -S work/file_contexts -l $df_block -a system work/system_tmp.img work/system"
+else
+	make_cmd="tools/ext4_utils/make_ext4fs -s -l $df_block -a system work/system_tmp.img work/system"
+fi
+
+extreme=no
+lazy=no
+
+echo
+echo "=========================================================================="
+echo
+echo "Select a build option:"
+echo
+echo "  1 = Lazy Mode - trust the kitchen to do everything without asking"
+echo "      (Zipalign, dont't de-odex, add ads, add over)"
+echo
+echo "  2 = Extreme Mode - for advanced users"
+echo "      (No zipalign, don't de-odex, don't add ads/over)"
+echo
+echo "  3 = Cancel - Don't build now"
+echo
+echo "=========================================================================="
+echo
+echo -n "Number (default: 1): "
+
+read build_mode
+
+if [ "$build_mode" == "3" ]
+then
+	echo "Cancelled"
+	exit 0
+elif [ "$build_mode" == "2" ]
+then
+	extreme=yes
+else
+	lazy=yes
+	express=yes
+fi
+
+if [ "$extreme" == "no" ]
+then
+	scripts/do_zipalign for_build $express
+fi
+
+if [ "$?" == "1" ]
+then
+	echo "Cancelling build"
+	exit 0
+fi
+
+if [ "$extreme" == "no" ]
+then
+	scripts/add_ads
+	scripts/add_over
+fi
+
+echo
+echo Makeing work/system...
+echo
+$make_cmd
+if [ "$?" == "0" ]
+	then
+	echo
+	echo Make Done.
+	scripts/clear_work
+else
+	echo
+	echo Make Failed
+	rm work/system_tmp.img
+fi

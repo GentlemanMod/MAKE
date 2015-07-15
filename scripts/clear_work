@@ -1,0 +1,32 @@
+
+
+echo
+echo Umount and Clear system
+umount work/system
+rm -rf work/system
+echo
+echo Move system_tmp.img to system.img
+mv work/system_tmp.img work/system.img
+rm tools/devices.prop
+echo
+echo Clear Done
+sleep 5
+clear
+echo
+echo
+echo
+echo
+echo "=========================================================================="
+echo
+echo "Congratulations ... your ROM is here:"
+echo
+echo "----> work/system.img"
+echo
+echo "Copy this to your device and flash from fastboot or Smart Phone Flash Tool."
+echo
+echo "=========================================================================="
+echo
+echo "NOTE 1: Remember to do a factory reset or data/cache wipe if necessary!"
+echo
+
+exit 0

@@ -1,0 +1,64 @@
+
+
+clear
+echo
+echo "-----------------------------------------------------------------"
+echo
+echo " Over/* is user custom file. Copy file need root perimmision."
+echo
+echo "-----------------------------------------------------------------"
+echo
+echo -n "Add over/* (y/n)? (default: y): "
+read do_over
+
+if [ "$do_over" == "n" ]
+	then exit 1
+fi
+
+cd tools/over
+find * -type f > ../../over_file.log
+find * -type d > ../../over_folder.log
+cd ../..
+
+if [ ! -d work ]
+then
+	echo No working folder found!
+	exit 1
+fi
+
+version_release=`grep ro.build.version.release= tools/devices.prop|cut -d "=" -f 2|cut -d "." -f 1`
+
+cd work
+
+if [ ! -d system ]
+then
+	echo No system folder found!
+	exit 1
+fi
+
+cat ../over_folder.log | while read over_folder
+do
+	if [ ! -d system/$over_folder ]
+	then
+		echo Create system/$over_folder
+		mkdir system/$over_folder
+	fi
+done
+
+cat ../over_file.log | while read over_file
+do
+	echo Adding system/$over_file
+	cp -pRf ../tools/over/$over_file system/$over_file
+done
+
+if [ "$version_release" -ge "5" ]
+then
+	echo flash_recovery in system/bin/install-recovery.sh
+	rm -rf system/bin/install-recovery.sh
+	cp system/etc/install-recovery.sh system/bin/install-recovery.sh
+	echo Adding system/bin/install-recovery.sh
+fi
+
+cd ..
+
+scripts/press_enter

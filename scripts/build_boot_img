@@ -1,0 +1,189 @@
+############################################################################
+#
+# Copyright (c) 2012 - dsixda (dislam@rocketmail.com)
+#
+# Android Kitchen is 100% free.  This script file is intended for personal
+# and/or educational use only.  It may not be duplicated for monetary
+# benefit or any other purpose without the permission of the developer.
+#
+############################################################################
+
+#
+# This script has three optional parameters:
+#
+# $1 = page size / kernel offset in boot.img (in decimal)
+# $2 = kernel base offset (in hexadecimal, e.g. 0x200000; needs $1 defined)
+# $3 = command line (needs $1 and $2 defined)
+#
+
+echo
+
+if [ -d BOOT-EXTRACTED ]
+then
+  echo Found BOOT-EXTRACTED folder, checking contents ...
+
+  if [ -d BOOT-EXTRACTED/boot.img-ramdisk ]
+  then
+    echo Found boot.img-ramdisk
+
+    if [ -e BOOT-EXTRACTED/boot.img-zImage ]
+    then
+      echo Found boot.img-zImage
+    else
+      echo Did not find BOOT-EXTRACTED/boot.img-zImage
+      exit 0
+    fi
+
+  else
+    echo Did not find BOOT-EXTRACTED/boot.img-ramdisk folder!
+    exit 0
+  fi
+
+else
+  echo Did not find BOOT-EXTRACTED folder!
+  exit 0
+fi
+
+
+if [ -d work ]
+then
+  echo Working folder found
+else
+  echo Working folder not found!
+  exit 0
+fi
+
+#
+# Compile mkboot*
+#
+
+mkbootfs_file=mkbootfs
+mkbootimg_file=mkbootimg
+
+cp tools/extract_boot_files/$mkbootfs_file BOOT-EXTRACTED/
+cp tools/extract_boot_files/$mkbootimg_file BOOT-EXTRACTED/
+cd BOOT-EXTRACTED
+
+
+#
+# Run mkbootfs
+#
+
+echo 
+echo "Creating ramdisk cpio archive ..."
+./$mkbootfs_file boot.img-ramdisk | gzip > ramdisk.gz
+echo
+
+#
+# Get original size of boot.img
+#
+#size_orig=`scripts/get_boot_img_size`
+
+
+second_offset=`cat boot.img-second_offset`
+pagesize=`cat boot.img-pagesize`
+tags_offset=`cat boot.img-tags_offset`
+
+#
+# Determine kernel base address before running mkbootimg
+#
+
+if [ "$base" == "" ]
+then
+  echo "Attempting to determine kernel base address ..."
+  base=`cat boot.img-base`
+fi
+
+echo "Using base address of $base"
+
+ 
+#
+# Determine ramdisk load address
+#
+ramdisk_addr=`cat boot.img-ramdisk_offset`
+
+echo "Using ramdisk load address of $ramdisk_addr"
+
+
+#
+# If no parameters entered, then find out the command line
+#
+# NOTE: Check the first two parameters to determine whether the user set the
+# command line to an empty string intentionally
+#
+if [ "$3" == "" ]  && [ "$1" == "" ]
+then
+  echo "Attempting to determine command line parameter ..."
+  cmd_line=`cat boot.img-cmdline`
+fi
+
+if [ "$cmd_line" == "" ]
+then
+  echo "No cmdline"
+else
+  echo "Using cmdline: $cmd_line"
+fi
+
+#################################################
+#
+# Run mkbootimg to build new boot.img
+#
+#################################################
+
+echo
+echo "Building new boot.img ..."
+
+ramdisk_params=""
+if [ "$ramdisk_addr" != "" ]
+then
+  ramdisk_params="--ramdisk_offset 0x$ramdisk_addr"
+fi
+
+if [ -f boot.img-dt ]
+then
+  dt_params="--dt boot.img-dt"
+  echo
+  echo DTB file found!
+else
+  dt_params=""
+fi
+
+other_params="--second boot.img-second --second_offset 0x$second_offset --pagesize $pagesize --tags_offset 0x$tags_offset"
+
+if [ "$cmd_line" == "" ]
+then
+  ./$mkbootimg_file --kernel boot.img-zImage --ramdisk ramdisk.gz -o newBoot.img --base 0x$base $ramdisk_params $other_params $dt_params
+else
+  ./$mkbootimg_file --kernel boot.img-zImage --ramdisk ramdisk.gz --cmdline "$cmd_line" -o newBoot.img --base 0x$base $ramdisk_params $other_params $dt_params
+fi
+
+
+if [ -e newBoot.img ]
+then
+  echo
+  echo "newBoot.img created"
+
+  echo "Moving to working folder as boot.img"
+  cd ../work
+  mv -f ../BOOT-EXTRACTED/newBoot.img boot.img
+
+  cd ..
+    
+  echo
+  echo "Removing BOOT-EXTRACTED folder ..."
+  rm -rf BOOT-EXTRACTED
+  
+  exit_code=1
+
+else
+  echo
+  echo "newBoot.img not created!"
+
+  rm $mkbootfs_file
+  rm $mkbootimg_file
+
+  cd ..
+  exit_code=0
+fi
+
+exit $exit_code

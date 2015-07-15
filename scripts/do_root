@@ -1,0 +1,86 @@
+
+
+clear
+echo
+echo "-----------------------------------------------------------------"
+echo
+echo " Add root in boot.img."
+echo
+echo "-----------------------------------------------------------------"
+echo
+echo -n "Add root (y/n)? (default: y): "
+read do_root
+
+if [ "$do_root" == "n" ]
+  then exit 1
+fi
+
+if [ -d BOOT-EXTRACTED ]
+then
+  extracted=true
+else
+  extracted=false
+fi
+
+cd work
+if [ -e boot.img ]
+then
+  boot_img=true
+else
+  boot_img=false
+fi
+cd  ..
+
+echo
+if [ "$extracted" == "true" ]
+then
+  echo BOOT-EXTRACTED found, Whether to use the it.
+  echo
+  echo -n "Used BOOT-EXTRACTED (y/n)? (default: y): "
+  read do_use_dic
+  if [ "$do_use_dic" == "n" ]
+  then
+    rm -rf BOOT-EXTRACTED
+
+	if [ "$boot_img" == "true" ]
+	then
+	  sleep 2
+      scripts/ensure_boot_extracted
+	fi
+  fi
+else
+  if [ "$boot_img" == "true" ]
+  then
+    scripts/ensure_boot_extracted
+  else
+  	echo boot.img or BOOT-EXTRACTED not found!
+    scripts/press_enter
+	exit 1
+  fi
+fi
+
+
+echo Copy root file to boot.img...
+cp tools/bootimg/adbd BOOT-EXTRACTED/boot.img-ramdisk/sbin/adbd
+
+echo
+cmp tools/bootimg/adbd BOOT-EXTRACTED/boot.img-ramdisk/sbin/adbd
+cmp_adbd=$?
+
+if [ "$cmp_adbd" == "0" ]
+then
+  echo Add Root done.
+else
+  echo Add Root failed.
+  rm -rf BOOT-EXTRACTED
+  scripts/press_enter
+  exit 1
+fi
+
+echo
+echo Repack boot.img...
+sleep 3
+
+scripts/prompt_build_boot
+scripts/build_boot_img
+scripts/press_enter

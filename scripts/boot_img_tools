@@ -1,0 +1,112 @@
+############################################################################
+#
+# Copyright (c) 2012 - dsixda (dislam@rocketmail.com)
+#
+# Android Kitchen is 100% free.  This script file is intended for personal
+# and/or educational use only.  It may not be duplicated for monetary
+# benefit or any other purpose without the permission of the developer.
+#
+############################################################################
+
+
+clear
+
+while :
+do
+
+  clear
+
+  echo
+  echo "Boot image tools"
+  echo "----------------"
+  echo
+  echo "Enter a choice:"
+  echo 
+
+  if [ -d work ]
+  then
+
+    if [ -d BOOT-EXTRACTED ]
+    then
+      extracted=true
+    else
+      extracted=false
+    fi
+
+    cd work
+    if [ -e boot.img ]
+    then
+      boot_img=true
+    else
+      boot_img=false
+    fi
+
+    cd ..
+
+
+    if [ "$boot_img" == "true" ]
+    then
+      echo "  s = Show boot.img information"
+    fi
+
+    if [ "$extracted" == "true" ] 
+    then
+      echo "  b = Build boot.img from BOOT-EXTRACTED folder (for working folder)"
+      echo "  r = Remove BOOT-EXTRACTED folder (don't build anything)"
+    else
+      
+      if [ "$boot_img" == "true" ]
+      then
+        echo "  w = Extract kernel+ramdisk from boot.img"
+      fi
+    fi
+  fi
+
+  if [ "$boot_img" == "false" ] && [ "$extracted" == "false" ]
+  then
+    echo "  boot.img or BOOT-EXTRACTED not found"
+  fi
+
+  echo "  x = Exit"
+  echo
+  echo "  NOTE: Other options may not be shown in this menu *until* a specific"
+  echo "  action above is selected or a specific working folder is created."
+  echo "  (A working folder is created with Option 1 of the kitchen main menu!)"
+  echo
+  echo "  e.g. You won't see the option to re-pack a boot.img unless you unpack"
+  echo "  the boot.img first!  For re-packing you also need a working folder "
+  echo "  with the original boot.img so that the kitchen can use its header" 
+  echo "  information to construct the new boot.img."
+  echo
+  echo -n "? "
+
+  read enterLetter
+
+  if [ "$enterLetter" == "s" ]
+  then
+    scripts/show_boot_img_info
+
+  elif [ "$enterLetter" == "w" ]
+  then
+    scripts/ensure_boot_extracted
+
+  elif [ "$enterLetter" == "r" ] 
+  then
+    rm -rf BOOT-EXTRACTED; echo; echo "Deleted"
+
+  elif [ "$enterLetter" == "b" ] 
+  then
+    scripts/prompt_build_boot
+    scripts/build_boot_img
+
+  elif [ "$enterLetter" == "x" ]
+  then
+    exit 0
+  else 
+    echo "Invalid option"
+    continue
+  fi
+
+  scripts/press_enter
+
+done

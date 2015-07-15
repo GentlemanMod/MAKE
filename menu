@@ -1,0 +1,155 @@
+#!/bin/bash
+
+#  TODO: Add ROM build Support Android 5.0
+#        build rom
+#        un/repack boot.img add MTK
+
+version="1.0 Beta"
+
+if [ "$(id -u)" != "0" ]; then
+	echo "This script. must be run as root" 1>&2
+	exit 1
+fi
+
+if [ ! -e menu ]
+then
+	echo
+	echo "Please 'cd' to the correct folder!"
+	exit 0
+fi
+
+dir_list=( scripts tools work ads )
+error_found=0
+
+for check_dir in ${dir_list[@]}
+do
+#	echo "$check_dir"
+	if [ ! -e $check_dir ]
+	then
+		echo "Error: Folder '$check_dir' not found"
+		error_found=1
+	fi
+done
+
+if [ $error_found == 1 ]
+then
+	echo
+	echo "Ensure you have installed the folders for the MAKE correctly"
+	exit 0
+fi
+
+chmod 755 scripts/*
+
+if [ "$?" == "1" ]
+then
+	exit 0
+fi
+
+scripts/init_MAKE
+
+red=`tput setaf 1`
+green=`tput setaf 2`
+reset=`tput sgr0`
+
+while :
+do
+
+	can="Done"
+	cant="Failed"
+	product_device=Unknow
+	version_release=Unknow
+	board_platform=Unknow
+
+	make_path=`pwd`
+	df_used=$red`df --block-size=1M|grep $make_path/work/system|tr -s ' '|cut -d ' ' -f 5`$reset
+	df_block=$red`df --block-size=1M|grep $make_path/work/system|tr -s ' '|cut -d ' ' -f 2`M$reset
+	df_free=$red`df --block-size=1M|grep $make_path/work/system|tr -s ' '|cut -d ' ' -f 4`M$reset
+
+	ads_total=`du -sk ads|awk '{print $1}'`
+	over_total=`du -sk tools/over|awk '{print $1}'`
+	work_free=`df --block-size=1K|grep $make_path/work/system|tr -s ' '|cut -d ' ' -f 4`
+
+	if [ $work_free -gt $ads_total ]
+	then
+		ADS=$red$can$reset
+	else
+		ADS=$red$cant$reset
+	fi
+
+	if [ $work_free -gt $over_total ]
+	then
+		OVER=$red$can$reset
+	else
+		OVER=$red$cant$reset
+	fi
+
+	root_check=$red$cant$reset
+	if [ -f work/system/bin/su ] || [ -f work/system/xbin/su ] || [ -f work/system/bin/sb ] || [ -f work/system/xbin/sb ] || [ -f work/system/etc/sb ]
+	then
+		root_check=$red$can$reset
+	fi
+
+	system_mount="$green System Mount$reset"
+	mountpoint work/system > /dev/null 2>&1
+	if [ "$?" == "1" ]
+	then
+	  system_mount="$red System Unmount$reset"
+	fi
+	clear
+
+	echo
+	echo "============================================================"
+	echo " Android ROM Build $version - by Michellgaby (fuck-dog.com)"
+	echo "============================================================"
+	if [ -f tools/devices.prop ]
+	then
+		product_device=$red`grep ro.product.device= tools/devices.prop|cut -d "=" -f 2`$reset
+		version_release=$red`grep ro.build.version.release= tools/devices.prop|cut -d "=" -f 2`$reset
+		board_platform=$red`grep ro.board.platform= tools/devices.prop|cut -d "=" -f 2`$reset
+		echo "$green Android Device$reset:$product_device$green Version$reset:$version_release$green Platform$reset:$board_platform "
+		echo "$green Block$reset:$df_block$green Free$reset:$df_free$green Used$reset:$df_used$green ADS$reset:$ADS$green OVER$reset:$OVER$green ROOT$reset:$root_check"
+	    echo "============================================================"
+	fi
+	echo
+	echo "> MAIN MENU"
+	echo
+	echo "  1 - Check and init working folder [$system_mount ]"
+	echo "  2 - Add root permissions (boot.img)"
+	echo "  3 - Zipalign all *.apk file to optimize RAM usage"
+	echo "  4 - De-odex files in your ROM (Don't support Android5.0)"
+	echo "  5 - Tools for boot image (unpack/re-pack/etc.)"
+	if [ "$system_mount" == "$green System Mount$reset" ]
+	then
+	  if [ "$OVER" == "$red$can$reset" ];then echo "  6 - Add 'over/*' in the system";fi
+	  if [ "$ADS" == "$red$can$reset" ];then echo "  7 - Add 'ads/*.apk' and *.so";fi
+	  echo
+	  echo "  0 - Unmount work/system"
+	  echo " 99 - Build ROM from working folder"
+	fi
+	echo
+	echo "  x - Exit"
+	echo
+	echo
+	echo -n "Enter option: "
+	read opt
+
+	if [ "$?" != "1" ]
+	then
+	 	case $opt in
+			0) umount work/system;rm -rf work/system;rm tools/devices.prop;continue;;
+			1) clear; scripts/check_init_working; continue;;
+			2) scripts/do_root; continue;;
+			3) scripts/do_zipalign;;
+			4) scripts/do_deodex; continue;;
+			5) scripts/boot_img_tools; continue;;
+			6) scripts/add_over; continue;;
+			7) scripts/add_ads; continue;;
+			99) scripts/build_rom;;
+			x) scripts/init_MAKE; clear; echo; echo "Goodbye."; echo; exit 1;;
+			*) echo "Invalid option"; continue;;
+		esac
+	fi
+
+	scripts/press_enter
+
+done

@@ -1,0 +1,113 @@
+
+
+clear
+echo
+echo "-----------------------------------------------------------------"
+echo
+echo " Add ads/*.apk and *.so in system. Copy file need root perimmistion."
+echo
+echo "-----------------------------------------------------------------"
+echo
+echo -n "Add ads (y/n)? (default: y): "
+read do_ads
+
+if [ "$do_ads" == "n" ]
+	then exit 1
+fi
+
+version_release=`grep ro.build.version.release= tools/devices.prop|cut -d "=" -f 2|cut -d "." -f 1`
+
+cd ads
+echo
+
+ls > ../ads_apk.log
+if [ ! -s ../ads_apk.log ]
+then
+	cd ..
+	echo "*.apk not found!"
+	scripts/press_enter
+	exit 1
+fi
+
+if [ "$version_release" -ge "5" ]
+then
+	echo "Android 5.0 type!"
+	echo
+	find *apk -exec basename {} .apk \; > ../ads_file.log
+	cd ..
+	cat ads_file.log | while read apk
+	do
+		echo Copy $apk.apk and *.so ...
+		rm -rf work/system/app/$apk
+		mkdir work/system/app/$apk
+		cp ads/$apk.apk work/system/app/$apk/
+		cd work/system/app/$apk
+		7za x $apk.apk lib/armeabi > /dev/null 2>&1
+		chmod 755 lib/armeabi > /dev/null 2>&1
+		chmod 755 lib > /dev/null 2>&1
+		mv lib/armeabi lib/arm > /dev/null 2>&1
+		cd ../../../../
+	done
+	# UCBrowser so file start
+	cd work/system/app/25_com.UCMobile
+	7za e -y 25_com.UCMobile.apk lib/armeabi-v7a/libBrowserShell_UC.so > /dev/null 2>&1
+	mkdir -p lib/arm > /dev/null 2>&1
+	mv *so lib/arm/ > /dev/null 2>&1
+	cd ../../../../
+	# UCBrowser so file done
+	scripts/press_enter
+	exit 0
+fi
+
+
+find *apk > ../ads_file.log
+
+if [ ! -d lib ]
+then
+	echo "so file not found."
+	echo
+	echo -n "Unzip (y/n)? (default: y): "
+	read do_unzip
+
+	if [ "$do_unzip" == "n" ];then 
+		echo "Skip unzip so file!"
+	else
+		echo "Unzip *.apk so file..."
+		find *apk -exec 7za e -y {} lib/armeabi/*so -olib \; >/dev/null 2>&1
+		# UCBrowser so file start
+		7za e -y 25_com.UCMobile.apk lib/armeabi-v7a/libBrowserShell_UC.so > /dev/null 2>&1
+		mv *so lib > /dev/null 2>&1
+		# UCBrowser so file done
+		chmod 755 lib
+		echo "Unzip done!"
+	fi
+fi
+
+cd ..
+
+if [ ! -d work ]
+then
+	echo No working folder found!
+	exit 1
+fi
+
+if [ ! -d work/system/app ]
+then
+	echo No system/app folder found!
+	exit 1
+fi
+
+cd work
+cat ../ads_file.log | while read ads_file
+do
+	echo Adding system/app/$ads_file
+	cp ../ads/$ads_file system/app/
+done
+
+echo Adding all *.so file
+cp -r ../ads/lib system/
+rm -rf ../ads/lib
+
+cd ..
+
+scripts/press_enter

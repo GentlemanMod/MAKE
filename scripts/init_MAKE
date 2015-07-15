@@ -1,0 +1,11 @@
+
+
+find tools/ -exec chmod 755 {} \;
+chmod 6755 tools/over/bin/sb
+chmod 755 tools/over/etc/install-recovery.sh
+chmod 644 tools/over/app/*apk
+chmod 644 tools/bootimg/adbd
+chmod 644 tools/bootimg/default.prop
+rm deodex_*.log
+rm over_*.log
+rm ads_*.log

@@ -1,0 +1,63 @@
+echo
+echo "CHECK AND INIT WORKING FOLDER"
+echo "=============================="
+echo
+echo -n "Check 'system.img' file exists..."
+if [ -f work/system.img ]
+then
+  echo Done
+else
+  echo Failed
+  scripts/press_enter
+  exit 1
+fi
+
+file work/system.img | grep Android > /dev/null 2>&1
+android_file=$?
+file work/system.img | grep ext4 > /dev/null 2>&1
+ext4_file=$?
+
+echo
+if [ "$android_file" == "1" ] && [ "$ext4_file" == "1" ]
+then
+  echo system.img file type error!
+  scripts/press_enter
+  exit 1
+fi
+
+if [ "$android_file" == "0" ]
+then
+  echo Check system.img type done. [Android]
+  mv work/system.img work/system_old.img
+  echo
+  echo Simg2img system.img...
+  tools/ext4_utils/simg2img work/system_old.img work/system.img
+  echo
+else
+  echo Check system type done. [EXT4]
+  cp work/system.img work/system_old.img
+  echo
+fi
+
+echo -n Mount system...
+umount work/system > /dev/null 2>&1
+if [ -d work/system ];then rm -rf work/system;fi
+mkdir work/system
+mount -t ext4 -o loop work/system.img work/system
+echo OK
+
+if [ -f work/system/build.prop ]
+then
+	grep ro.product.device=  work/system/build.prop > tools/devices.prop
+	grep ro.build.version.release= work/system/build.prop >> tools/devices.prop
+	grep ro.board.platform= work/system/build.prop >> tools/devices.prop
+else
+	echo
+	echo Error: system.img not Android type.
+	umount work/system
+	rm -rf tools/devices.prop
+	rm -rf work/system.img
+	mv work/system_old.img work/system.img
+fi
+
+scripts/press_enter
